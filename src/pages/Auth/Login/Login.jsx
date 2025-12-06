@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext/AuthProvider";
+import Swal from "sweetalert2";
 
 const Login = () => {
-  const { login } = useAuth(); // useAuth should provide login(email, password)
+  const { login } = useAuth(); // login(email, password)
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,8 +19,17 @@ const Login = () => {
     const password = form.password.value;
 
     try {
-      await login(email, password); // Firebase Auth or your backend auth
-      navigate("/"); // Navigate to home/dashboard after login
+      await login(email, password); // Call your auth function
+
+      // SweetAlert success
+      Swal.fire({
+        icon: "success",
+        title: "Login Successful",
+        text: `Welcome back!`,
+        confirmButtonText: "Go to Home",
+      }).then(() => {
+        navigate("/"); // Redirect to home/dashboard
+      });
     } catch (err) {
       setError(err.message || "Failed to login. Check your credentials.");
     } finally {

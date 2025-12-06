@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
 import { useAuth } from "../../../contexts/AuthContext/AuthProvider";
+import Swal from "sweetalert2";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const imgBB_API_KEY = import.meta.env.VITE_IMGBB_KEY;
 
 const Register = () => {
   const { register } = useAuth();
@@ -23,15 +22,14 @@ const Register = () => {
       .then((data) => {
         setCenters(data);
 
-        // Extract unique divisions
         const uniqueDivisions = [
           ...new Set(data.map((center) => center.region)),
         ].map((name, index) => ({ id: index + 1, name }));
+
         setDivisions(uniqueDivisions);
       });
   }, []);
 
-  // When a division is selected, filter districts
   const handleDivisionChange = (e) => {
     const selectedDivision = e.target.value;
 
@@ -47,10 +45,8 @@ const Register = () => {
     setFilteredUpazilas([]);
   };
 
-  // When a district is selected, filter upazilas (covered_area)
   const handleDistrictChange = (e) => {
     const selectedDistrict = e.target.value;
-
     const districtData = centers.find((c) => c.district === selectedDistrict);
 
     setFilteredUpazilas(
@@ -61,7 +57,6 @@ const Register = () => {
     );
   };
 
-  // Handle form submission
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
@@ -69,7 +64,7 @@ const Register = () => {
     const form = e.target;
     const name = form.name.value;
     const email = form.email.value;
-    const avatar = form.avatar.files[0];
+    const avatarURL = form.avatar.value; // Use URL now
     const bloodGroup = form.bloodGroup.value;
     const division = form.division.value;
     const district = form.district.value;
@@ -83,23 +78,20 @@ const Register = () => {
     }
 
     try {
-      // Upload avatar to ImgBB
-      const formData = new FormData();
-      formData.append("image", avatar);
-
-      const imgUpload = await axios.post(
-        `https://api.imgbb.com/1/upload?key=${imgBB_API_KEY}`,
-        formData
-      );
-
-      const avatarURL = imgUpload.data.data.url;
-
       // Register user
       await register(email, password, name, avatarURL);
 
-      // TODO: Save full user info to backend DB (bloodGroup, division, district, upazila)
+      // Optional: Save extra user info to backend (bloodGroup, division, district, upazila)
 
-      navigate("/login");
+      // SweetAlert success
+      Swal.fire({
+        icon: "success",
+        title: "Registration Successful",
+        text: `Welcome ${name}!`,
+        confirmButtonText: "Go to Home",
+      }).then(() => {
+        navigate("/"); // Redirect to home
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -135,7 +127,6 @@ const Register = () => {
             required
           />
 
-          {/* Blood Group */}
           <select
             name="bloodGroup"
             className="select select-bordered w-full"
@@ -149,7 +140,6 @@ const Register = () => {
             ))}
           </select>
 
-          {/* Division */}
           <select
             name="division"
             className="select select-bordered w-full"
@@ -166,7 +156,6 @@ const Register = () => {
             ))}
           </select>
 
-          {/* District */}
           <select
             name="district"
             className="select select-bordered w-full"
@@ -183,7 +172,6 @@ const Register = () => {
             ))}
           </select>
 
-          {/* Upazila */}
           <select
             name="upazila"
             className="select select-bordered w-full"
