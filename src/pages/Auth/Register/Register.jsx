@@ -1,47 +1,67 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../../../contexts/AuthContext/AuthProvider"; // use our AuthProvider
+import { useAuth } from "../../../contexts/AuthContext/AuthProvider";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const imgBB_API_KEY = import.meta.env.VITE_IMGBB_KEY;
 
 const Register = () => {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const [centers, setCenters] = useState([]);
   const [divisions, setDivisions] = useState([]);
-  const [districts, setDistricts] = useState([]);
   const [filteredDistricts, setFilteredDistricts] = useState([]);
   const [filteredUpazilas, setFilteredUpazilas] = useState([]);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
-  const { register } = useAuth(); // get register function from AuthProvider
-
-  // Load JSON data
+  // Load centers.json
   useEffect(() => {
-    fetch("/divisions.json")
+    fetch("/centers.json")
       .then((res) => res.json())
-      .then((data) => setDivisions(data));
+      .then((data) => {
+        setCenters(data);
 
-    fetch("/districts.json")
-      .then((res) => res.json())
-      .then((data) => setDistricts(data));
+        // Extract unique divisions
+        const uniqueDivisions = [
+          ...new Set(data.map((center) => center.region)),
+        ].map((name, index) => ({ id: index + 1, name }));
+        setDivisions(uniqueDivisions);
+      });
   }, []);
 
+  // When a division is selected, filter districts
   const handleDivisionChange = (e) => {
-    const selectedDivisionId = e.target.value;
-    const filtered = districts.filter(
-      (d) => d.division_id == selectedDivisionId
-    );
-    setFilteredDistricts(filtered);
+    const selectedDivision = e.target.value;
+
+    const districtsInDivision = [
+      ...new Set(
+        centers
+          .filter((c) => c.region === selectedDivision)
+          .map((c) => c.district)
+      ),
+    ].map((name, index) => ({ id: index + 1, name }));
+
+    setFilteredDistricts(districtsInDivision);
     setFilteredUpazilas([]);
   };
 
+  // When a district is selected, filter upazilas (covered_area)
   const handleDistrictChange = (e) => {
-    const selectedDistrictId = e.target.value;
-    const district = districts.find((d) => d.id == selectedDistrictId);
-    setFilteredUpazilas(district?.upazilas || []);
+    const selectedDistrict = e.target.value;
+
+    const districtData = centers.find((c) => c.district === selectedDistrict);
+
+    setFilteredUpazilas(
+      districtData?.covered_area.map((name, index) => ({
+        id: index + 1,
+        name,
+      })) || []
+    );
   };
 
+  // Handle form submission
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
@@ -63,7 +83,7 @@ const Register = () => {
     }
 
     try {
-      // Upload avatar → ImgBB
+      // Upload avatar to ImgBB
       const formData = new FormData();
       formData.append("image", avatar);
 
@@ -74,10 +94,10 @@ const Register = () => {
 
       const avatarURL = imgUpload.data.data.url;
 
-      // Register user via AuthProvider
+      // Register user
       await register(email, password, name, avatarURL);
 
-      // TODO: Save full user info to backend DB (role="donor", bloodGroup, division, etc.)
+      // TODO: Save full user info to backend DB (bloodGroup, division, district, upazila)
 
       navigate("/login");
     } catch (err) {
@@ -100,7 +120,6 @@ const Register = () => {
             className="input input-bordered w-full"
             required
           />
-
           <input
             type="email"
             name="email"
@@ -108,15 +127,15 @@ const Register = () => {
             className="input input-bordered w-full"
             required
           />
-
           <input
-            type="file"
+            type="url"
             name="avatar"
-            accept="image/*"
-            className="file-input file-input-bordered w-full"
+            placeholder="Avatar Image URL"
+            className="input input-bordered w-full"
             required
           />
 
+          {/* Blood Group */}
           <select
             name="bloodGroup"
             className="select select-bordered w-full"
@@ -141,7 +160,7 @@ const Register = () => {
               Select Division
             </option>
             {divisions.map((div) => (
-              <option key={div.id} value={div.id}>
+              <option key={div.id} value={div.name}>
                 {div.name}
               </option>
             ))}
@@ -158,7 +177,7 @@ const Register = () => {
               Select District
             </option>
             {filteredDistricts.map((dist) => (
-              <option key={dist.id} value={dist.id}>
+              <option key={dist.id} value={dist.name}>
                 {dist.name}
               </option>
             ))}
@@ -187,7 +206,6 @@ const Register = () => {
             className="input input-bordered w-full"
             required
           />
-
           <input
             type="password"
             name="confirmPassword"
