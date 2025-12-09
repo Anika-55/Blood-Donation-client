@@ -68,14 +68,14 @@ const StatisticsSection = () => {
   return (
     <section
       ref={ref}
-      className="py-24 bg-gradient-to-r from-red-500 to-red-600"
+      className="py-24 bg-gradient-to-r from-red-400 to-red-500"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 1 }}
-          className="text-4xl font-bold text-white mb-12"
+          className="text-4xl font-bold  mb-12 bg-gradient-to-br from-sky-900 to-red-900 bg-clip-text text-transparent"
         >
           Our Impact So Far
         </motion.h2>

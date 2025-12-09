@@ -1,221 +1,137 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../../contexts/AuthContext/AuthProvider";
-import Swal from "sweetalert2";
+import React, { useState } from "react";
+import { API_BASE } from "../../../utils/api";
+import { useNavigate } from "react-router-dom";
 
-const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-
-const Register = () => {
-  const { register } = useAuth();
+export default function Register() {
+  const [form, setForm] = useState({
+    email: "",
+    name: "",
+    bloodGroup: "A+",
+    district: "",
+    upazila: "",
+    password: "",
+    confirm_password: "",
+    avatarUrl: "", // use URL instead of file
+  });
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
   const navigate = useNavigate();
 
-  const [centers, setCenters] = useState([]);
-  const [divisions, setDivisions] = useState([]);
-  const [filteredDistricts, setFilteredDistricts] = useState([]);
-  const [filteredUpazilas, setFilteredUpazilas] = useState([]);
-  const [error, setError] = useState("");
+  const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  // Load centers.json
-  useEffect(() => {
-    fetch("/centers.json")
-      .then((res) => res.json())
-      .then((data) => {
-        setCenters(data);
-
-        const uniqueDivisions = [
-          ...new Set(data.map((center) => center.region)),
-        ].map((name, index) => ({ id: index + 1, name }));
-
-        setDivisions(uniqueDivisions);
-      });
-  }, []);
-
-  const handleDivisionChange = (e) => {
-    const selectedDivision = e.target.value;
-
-    const districtsInDivision = [
-      ...new Set(
-        centers
-          .filter((c) => c.region === selectedDivision)
-          .map((c) => c.district)
-      ),
-    ].map((name, index) => ({ id: index + 1, name }));
-
-    setFilteredDistricts(districtsInDivision);
-    setFilteredUpazilas([]);
-  };
-
-  const handleDistrictChange = (e) => {
-    const selectedDistrict = e.target.value;
-    const districtData = centers.find((c) => c.district === selectedDistrict);
-
-    setFilteredUpazilas(
-      districtData?.covered_area.map((name, index) => ({
-        id: index + 1,
-        name,
-      })) || []
-    );
-  };
-
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
-    const form = e.target;
-    const name = form.name.value;
-    const email = form.email.value;
-    const avatarURL = form.avatar.value; // Use URL now
-    const bloodGroup = form.bloodGroup.value;
-    const division = form.division.value;
-    const district = form.district.value;
-    const upazila = form.upazila.value;
-    const password = form.password.value;
-    const confirmPassword = form.confirmPassword.value;
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match!");
-      return;
-    }
+    setLoading(true);
+    setMsg("");
 
     try {
-      // Register user
-      await register(email, password, name, avatarURL);
+      // Validation
+      if (form.password !== form.confirm_password) {
+        setMsg("Passwords do not match");
+        setLoading(false);
+        return;
+      }
 
-      // Optional: Save extra user info to backend (bloodGroup, division, district, upazila)
-
-      // SweetAlert success
-      Swal.fire({
-        icon: "success",
-        title: "Registration Successful",
-        text: `Welcome ${name}!`,
-        confirmButtonText: "Go to Home",
-      }).then(() => {
-        navigate("/"); // Redirect to home
+      // Send JSON body instead of FormData
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
       });
+
+      const json = await res.json();
+
+      if (!res.ok) throw new Error(json.message || "Registration failed");
+
+      // Save token & user info
+      localStorage.setItem("accessToken", json.token);
+      localStorage.setItem("user", JSON.stringify(json.user));
+
+      setMsg("Registered successfully");
+
+      // Redirect to home or dashboard
+      navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      setMsg(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-base-200">
-      <div className="card shadow-xl p-8 bg-white w-full max-w-lg">
-        <h2 className="text-2xl font-bold text-center mb-4">
-          Create Donor Account
-        </h2>
-
-        <form onSubmit={handleRegister} className="space-y-3">
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            className="input input-bordered w-full"
-            required
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            className="input input-bordered w-full"
-            required
-          />
-          <input
-            type="url"
-            name="avatar"
-            placeholder="Avatar Image URL"
-            className="input input-bordered w-full"
-            required
-          />
-
-          <select
-            name="bloodGroup"
-            className="select select-bordered w-full"
-            required
-          >
-            <option disabled selected>
-              Select Blood Group
+    <div className="max-w-md mx-auto mt-8 p-6 card bg-base-200">
+      <h2 className="text-xl font-bold mb-4">Register</h2>
+      {msg && <div className="mb-3 alert">{msg}</div>}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input
+          name="name"
+          value={form.name}
+          onChange={onChange}
+          placeholder="Name"
+          className="input w-full"
+        />
+        <input
+          name="email"
+          value={form.email}
+          onChange={onChange}
+          placeholder="Email"
+          className="input w-full"
+        />
+        <select
+          name="bloodGroup"
+          value={form.bloodGroup}
+          onChange={onChange}
+          className="select w-full"
+        >
+          {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
+            <option key={bg} value={bg}>
+              {bg}
             </option>
-            {bloodGroups.map((bg) => (
-              <option key={bg}>{bg}</option>
-            ))}
-          </select>
-
-          <select
-            name="division"
-            className="select select-bordered w-full"
-            required
-            onChange={handleDivisionChange}
-          >
-            <option disabled selected>
-              Select Division
-            </option>
-            {divisions.map((div) => (
-              <option key={div.id} value={div.name}>
-                {div.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="district"
-            className="select select-bordered w-full"
-            required
-            onChange={handleDistrictChange}
-          >
-            <option disabled selected>
-              Select District
-            </option>
-            {filteredDistricts.map((dist) => (
-              <option key={dist.id} value={dist.name}>
-                {dist.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="upazila"
-            className="select select-bordered w-full"
-            required
-          >
-            <option disabled selected>
-              Select Upazila
-            </option>
-            {filteredUpazilas.map((up) => (
-              <option key={up.id} value={up.name}>
-                {up.name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            className="input input-bordered w-full"
-            required
-          />
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            className="input input-bordered w-full"
-            required
-          />
-
-          {error && <p className="text-red-500">{error}</p>}
-
-          <button className="btn btn-primary w-full mt-3">Register</button>
-        </form>
-
-        <p className="mt-3 text-sm text-center">
-          Already have an account?{" "}
-          <Link to="/login" className="link text-red-600 font-semibold">
-            Login
-          </Link>
-        </p>
-      </div>
+          ))}
+        </select>
+        <input
+          name="district"
+          value={form.district}
+          onChange={onChange}
+          placeholder="District"
+          className="input w-full"
+        />
+        <input
+          name="upazila"
+          value={form.upazila}
+          onChange={onChange}
+          placeholder="Upazila"
+          className="input w-full"
+        />
+        <input
+          name="password"
+          value={form.password}
+          onChange={onChange}
+          type="password"
+          placeholder="Password"
+          className="input w-full"
+        />
+        <input
+          name="confirm_password"
+          value={form.confirm_password}
+          onChange={onChange}
+          type="password"
+          placeholder="Confirm Password"
+          className="input w-full"
+        />
+        <input
+          name="avatarUrl"
+          value={form.avatarUrl}
+          onChange={onChange}
+          placeholder="Avatar Image URL"
+          className="input w-full"
+        />
+        <button className="btn btn-primary w-full" disabled={loading}>
+          {loading ? "Registering..." : "Register"}
+        </button>
+      </form>
     </div>
   );
-};
-
-export default Register;
+}

@@ -1,85 +1,81 @@
+// src/pages/auth/Login.jsx
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../../contexts/AuthContext/AuthProvider";
-import Swal from "sweetalert2";
+import { API_BASE } from "../../../utils/api";
+import { useNavigate } from "react-router-dom";
 
-const Login = () => {
-  const { login } = useAuth(); // login(email, password)
-  const navigate = useNavigate();
-  const [error, setError] = useState("");
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  async function submit(e) {
     e.preventDefault();
-    setError("");
     setLoading(true);
-
-    const form = e.target;
-    const email = form.email.value;
-    const password = form.password.value;
+    setMsg("");
 
     try {
-      await login(email, password); // Call your auth function
-
-      // SweetAlert success
-      Swal.fire({
-        icon: "success",
-        title: "Login Successful",
-        text: `Welcome back!`,
-        confirmButtonText: "Go to Home",
-      }).then(() => {
-        navigate("/"); // Redirect to home/dashboard
+      // Send lowercase email to match backend
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.toLowerCase(), password }),
       });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        // Show detailed server message if available
+        throw new Error(json.message || "Login failed");
+      }
+
+      // Save token & user info
+      localStorage.setItem("accessToken", json.token);
+      localStorage.setItem("user", JSON.stringify(json.user));
+
+      // Redirect to dashboard
+      navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Failed to login. Check your credentials.");
+      setMsg(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-base-200">
-      <div className="card shadow-xl p-8 bg-white w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-4">User Login</h2>
+    <div className="max-w-md mx-auto mt-8 p-6 card bg-base-200">
+      <h2 className="text-xl font-bold mb-4">Login</h2>
 
-        <form onSubmit={handleLogin} className="space-y-3">
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            className="input input-bordered w-full"
-            required
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            className="input input-bordered w-full"
-            required
-          />
+      {msg && <div className="mb-3 alert alert-error">{msg}</div>}
 
-          {error && <p className="text-red-500">{error}</p>}
-
-          <button
-            type="submit"
-            className={`btn btn-primary w-full mt-3 ${
-              loading ? "loading" : ""
-            }`}
-            disabled={loading}
-          >
-            Login
-          </button>
-        </form>
-
-        <p className="mt-3 text-sm text-center">
-          Don't have an account?{" "}
-          <Link to="/register" className="link text-red-600 font-semibold">
-            Register
-          </Link>
-        </p>
-      </div>
+      <form onSubmit={submit} className="space-y-3">
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="input w-full"
+          type="email"
+          autoComplete="username"
+          required
+        />
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          className="input w-full"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+        <button
+          type="submit"
+          className="btn btn-primary w-full"
+          disabled={loading}
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </form>
     </div>
   );
-};
-
-export default Login;
+}
