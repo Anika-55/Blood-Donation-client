@@ -1,18 +1,23 @@
-// src/pages/dashboard/MyRequests.jsx
 import { useEffect, useState } from "react";
 import { API_BASE, getAuthHeaders } from "../../utils/api";
 
 export default function MyRequests() {
   const user = JSON.parse(localStorage.getItem("user"));
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState([]); // always start as array
 
   useEffect(() => {
+    if (!user?.id) return;
+
     fetch(`${API_BASE}/api/donation-requests?userId=${user.id}`, {
       headers: getAuthHeaders(),
     })
       .then((res) => res.json())
-      .then((data) => setRequests(data.requests));
-  }, []);
+      .then((data) => {
+        // data might be array directly
+        setRequests(Array.isArray(data) ? data : data.requests || []);
+      })
+      .catch((err) => console.error("Failed to fetch requests:", err));
+  }, [user]);
 
   return (
     <div>
@@ -29,7 +34,7 @@ export default function MyRequests() {
           </tr>
         </thead>
         <tbody>
-          {requests.map((req) => (
+          {requests?.map((req) => (
             <tr key={req._id} className="border">
               <td>{req.recipientName}</td>
               <td>
@@ -40,7 +45,13 @@ export default function MyRequests() {
               <td>{req.bloodGroup}</td>
               <td>{req.status}</td>
             </tr>
-          ))}
+          )) || (
+            <tr>
+              <td colSpan="6" className="text-center py-2">
+                No requests found.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
